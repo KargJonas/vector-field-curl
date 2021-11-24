@@ -7,7 +7,9 @@ const SCALE = 400 / N;
 const WIDTH = N * SCALE;
 const HEIGHT = N * SCALE;
 
-const EPSILON = 0.001;
+const EPSILON = 0.0001;
+// const CONTRAST = 4e14;
+const CONTRAST = 3e8;
 
 cnv.width = WIDTH;
 cnv.height = HEIGHT;
@@ -72,6 +74,10 @@ class Vector2D {
   dist(other) {
     return this.sub(other).mag();
   }
+
+  cross(other) {
+    return this.x * other.y - this.y * other.x;
+  }
 }
 
 const center = v(
@@ -80,17 +86,22 @@ const center = v(
 );
 
 function F(p) {
+  const offset = p.sub(center).unit();
+
+  return v(
+    offset.x * p.x,
+    offset.y * p.y
+  );
+
   // return v(
   //   Math.sin(p.x / 10),
   //   Math.sin(p.y / 10)
   // );
 
-  const offset = p.sub(center).unit();
-
-  return v(
-    offset.y,
-    -offset.x
-  );
+  // return v(
+  //   -offset.y,
+  //   offset.x
+  // );
 }
 
 function line(p1, p2) {
@@ -102,15 +113,20 @@ function line(p1, p2) {
 }
 
 function getCurl(p, n) {
+  const initialVector = F(p);
   let curl = 0;
 
   for (let i = 0; i < n; i++) {
+    // Getting the neighbors in a circle around
+    // the initial vector using a polar coordinates
     const angle = Math.PI / n * i;
     const offset = vPolar(EPSILON, angle);
 
     const neighbor = p.add(offset);
-    const vec = F(neighbor);
-    curl += (1 - offset.unit().dot(vec.unit()));
+    const newVector = F(neighbor);
+    const difference = newVector.sub(initialVector);
+
+    curl += offset.cross(difference);
   }
 
   return curl / n;
@@ -129,11 +145,12 @@ function draw() {
     for (let x = 0; x < N; x++) {
       const pos = v(x, y);
       const vec = F(pos);
-      const curl = getCurl(pos, 20);
+      const curl = getCurl(pos, 10) * CONTRAST;
 
+      const adjustedCurl = (curl + 1) / 2;
       if (curl < m) m = curl;
-      
-      ctx.fillStyle = `rgb(${(1 - curl) * 255}, ${curl * 255}, 0)`;
+
+      ctx.fillStyle = `rgb(${(1 - adjustedCurl) * 255}, ${adjustedCurl * 255}, 0)`;
       rect(pos.mul(SCALE), rectSize.mul(SCALE));
 
       line(
